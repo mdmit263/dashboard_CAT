@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voltagrid CAT Outstanding — Quality Dashboard</title>
+<style>
+  :root{
+    --bg:#F3F5F8; --panel:#FFFFFF; --border:#E3E8EF; --border-strong:#CBD5E1;
+    --text:#111827; --text-muted:#64748B; --text-faint:#94A3B8;
+    --accent:#2F5FA3; --accent-dark:#1B3B6F; --accent-light:#DCE8F7;
+    --green:#15803D; --green-bg:#DCFCE7; --green-line:#16A34A;
+    --amber:#B45309; --amber-bg:#FEF3C7; --amber-line:#D97706;
+    --red:#B91C1C; --red-bg:#FEE2E2; --red-line:#DC2626;
+    --shadow:0 1px 2px rgba(15,23,42,.06), 0 1px 1px rgba(15,23,42,.04);
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;}
+  body{padding:28px 32px 60px;max-width:1520px;margin:0 auto;}
+
+  .header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;gap:20px;flex-wrap:wrap;}
+  .header h1{margin:0 0 4px;font-size:23px;font-weight:800;letter-spacing:-.01em;}
+  .header .sub{font-size:13px;color:var(--text-muted);}
+  .header .meta{font-size:12px;color:var(--text-faint);text-align:right;line-height:1.6;}
+  .header .meta b{color:var(--text-muted);}
+
+  .section-label{font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin:30px 0 10px;}
+
+  /* ===== KPI row ===== */
+  .kpi-row{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;
+    box-shadow:var(--shadow);cursor:pointer;transition:transform .12s,box-shadow .12s;position:relative;}
+  .kpi:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,23,42,.1);}
+  .kpi.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-light);}
+  .kpi .val{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.1;}
+  .kpi .lbl{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:5px;}
+  .kpi .sub{font-size:10.5px;color:var(--text-faint);margin-top:2px;}
+  .kpi.hero .val{color:var(--red);}
+  .kpi.good .val{color:var(--green);}
+  .kpi.warn .val{color:var(--amber);}
+  .kpi.neutral .val{color:var(--accent-dark);}
+
+  /* ===== Panels ===== */
+  .grid-2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:stretch;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;}
+  .panel h2{margin:0 0 2px;font-size:14px;font-weight:700;}
+  .panel .panel-sub{font-size:11.5px;color:var(--text-muted);margin-bottom:14px;}
+
+  /* ===== Trend chart ===== */
+  .trend-wrap{position:relative;}
+  svg.trend{width:100%;height:230px;overflow:visible;}
+  .trend-bar{cursor:pointer;transition:opacity .1s;}
+  .trend-bar:hover{opacity:.85;}
+  .trend-axis-label{font-size:10px;fill:var(--text-faint);font-family:inherit;}
+  .trend-line{fill:none;stroke:var(--red-line);stroke-width:2.2;}
+  .trend-dot{fill:var(--red-line);cursor:pointer;}
+  .trend-legend{display:flex;gap:16px;font-size:11px;color:var(--text-muted);margin-top:10px;}
+  .trend-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .sw{width:10px;height:10px;border-radius:3px;display:inline-block;}
+
+  /* ===== Pareto ===== */
+  .pareto-row{display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;border-radius:6px;}
+  .pareto-row:hover{background:#F8FAFC;}
+  .pareto-row.active{background:var(--accent-light);}
+  .pareto-label{width:168px;flex-shrink:0;font-size:11.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pareto-track{flex:1;height:16px;background:#EEF2F7;border-radius:4px;overflow:hidden;position:relative;}
+  .pareto-fill{height:100%;background:linear-gradient(90deg,var(--accent) 0%,var(--accent-dark) 100%);border-radius:4px;}
+  .pareto-count{width:26px;flex-shrink:0;text-align:right;font-size:11.5px;font-weight:700;color:var(--accent-dark);}
+
+  /* ===== Job cards ===== */
+  .job-cards{display:flex;gap:12px;}
+  .job-card{flex:1;border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;background:#FBFCFE;transition:all .12s;}
+  .job-card:hover{border-color:var(--accent);}
+  .job-card.active{border-color:var(--accent);background:var(--accent-light);box-shadow:0 0 0 2px var(--accent-light);}
+  .job-card .jid{font-family:'SFMono-Regular',Consolas,monospace;font-size:12.5px;font-weight:700;color:var(--accent-dark);}
+  .job-card .jname{font-size:11px;color:var(--text-muted);margin:2px 0 10px;}
+  .job-card .jstat{display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;}
+  .job-card .jstat b{font-weight:700;}
+  .bar-mini{height:6px;background:#EEF2F7;border-radius:3px;overflow:hidden;margin-top:8px;}
+  .bar-mini-fill{height:100%;}
+
+  /* ===== Toolbar ===== */
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:26px 0 12px;}
+  .toolbar input[type=text]{padding:8px 12px;border:1px solid var(--border-strong);border-radius:8px;font-size:13px;width:230px;outline:none;font-family:inherit;}
+  .toolbar input:focus{border-color:var(--accent);}
+  .toolbar select{padding:8px 10px;border:1px solid var(--border-strong);border-radius:8px;font-size:12.5px;font-family:inherit;background:white;outline:none;}
+  .toolbar .count{margin-left:auto;font-size:12px;color:var(--text-muted);}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-light);color:var(--accent-dark);
+    border-radius:999px;padding:5px 10px 5px 12px;font-size:11.5px;font-weight:600;}
+  .chip .x{cursor:pointer;width:15px;height:15px;border-radius:50%;background:rgba(27,59,111,.15);
+    display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;}
+  .chip .x:hover{background:rgba(27,59,111,.3);}
+  .clear-all{font-size:11.5px;color:var(--accent);cursor:pointer;font-weight:600;}
+
+  /* ===== Table ===== */
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  thead th{background:var(--accent);color:white;font-size:11px;font-weight:700;text-align:left;padding:10px 12px;
+    text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;cursor:pointer;user-select:none;}
+  thead th:hover{background:var(--accent-dark);}
+  thead th .arrow{opacity:.6;font-size:9px;margin-left:3px;}
+  tbody td{padding:9px 12px;font-size:12.5px;border-top:1px solid var(--border);vertical-align:top;}
+  tbody tr{cursor:pointer;}
+  tbody tr:hover td{background:#F8FAFC;}
+  tbody tr.expanded td{background:#F4F7FB;}
+  .unit-id{font-family:'SFMono-Regular',Consolas,monospace;font-weight:700;font-size:11.5px;}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;white-space:nowrap;}
+  .badge.clean{background:var(--green-bg);color:var(--green);}
+  .badge.minor{background:var(--amber-bg);color:var(--amber);}
+  .badge.major{background:var(--red-bg);color:var(--red);}
+  .badge.pipeline{background:#E4EEFC;color:var(--accent);}
+  .count-pill{display:inline-block;min-width:20px;text-align:center;padding:2px 6px;border-radius:6px;font-size:11px;font-weight:700;}
+  .detail-row td{padding:0;border-top:none;}
+  .detail-box{background:#F4F7FB;border-top:1px dashed var(--border-strong);padding:14px 20px;}
+  .detail-items{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .detail-item{background:white;border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:11.5px;color:var(--text);}
+  .detail-meta{display:flex;gap:26px;font-size:11.5px;color:var(--text-muted);flex-wrap:wrap;}
+  .detail-meta b{color:var(--text);}
+
+  .tooltip{position:fixed;background:#111827;color:white;font-size:11.5px;padding:8px 11px;border-radius:7px;
+    pointer-events:none;z-index:60;display:none;line-height:1.55;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:280px;}
+  .tooltip b{color:#93C5FD;}
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>CAT Outstanding — Quality Dashboard</h1>
+      <div class="sub">Voltagrid serialized breaker production &middot; FAT/CAT punch-list tracking &middot; M200480-02 &amp; M200480-03</div>
+    </div>
+  </div>
+
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <div class="grid-2" style="margin-top:16px;">
+    <div class="panel">
+      <h2>CAT Quality Trend — units completed per week</h2>
+      <div class="panel-sub">Stacked bars = units passing CAT that week (green = clean, red = open punch items). Line = avg outstanding items per flagged unit.</div>
+      <div class="trend-wrap"><svg class="trend" id="trendSvg"></svg></div>
+      <div class="trend-legend">
+        <span><span class="sw" style="background:var(--green-line)"></span>Clean at CAT</span>
+        <span><span class="sw" style="background:var(--red-line)"></span>Open punch items</span>
+        <span><span class="sw" style="background:var(--red-line);border-radius:50%;width:8px;height:8px;"></span>Avg items / flagged unit</span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Top recurring punch items</h2>
+      <div class="panel-sub">Click a bar to filter the unit table below</div>
+      <div id="paretoList"></div>
+    </div>
+  </div>
+
+  <div class="section-label">By production order</div>
+  <div class="job-cards" id="jobCards"></div>
+
+  <div class="section-label">Unit-level detail</div>
+  <div class="toolbar">
+    <input type="text" id="searchBox" placeholder="Search unit, job, or item&hellip;">
+    <select id="stageFilter"><option value="">All stages</option></select>
+    <select id="severityFilter">
+      <option value="">All severities</option>
+      <option value="clean">Clean (0 items)</option>
+      <option value="minor">Minor (1&ndash;3 items)</option>
+      <option value="major">Major (4+ items)</option>
+      <option value="pipeline">Still in pipeline</option>
+    </select>
+    <div class="chips" id="chipRow"></div>
+    <div class="count" id="rowCount"></div>
+  </div>
+  <table>
+    <thead><tr id="headRow"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const RECORDS = [{"unit":"M200480-02.010","job":"M200480-02","unitNo":10,"handoverDate":"2026-08-14T06:34:00","handoverStatusRaw":"Transformer Secondary wires missing;#Breaker Barriers missing ","testingStart":"2026-08-13T12:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-17T07:30:00","readyForCat":"2026-08-17T00:00:00","catComplete":"2026-08-18T12:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-02.011","job":"M200480-02","unitNo":11,"handoverDate":"2026-08-14T14:17:00","handoverStatusRaw":"Vents missing;#Comms wires incomplete;#Transformer Secondary wires missing;#Ground wires not connected;#Stickers missing;#Filters missing;#Breaker barriers missing","testingStart":"2026-08-14T13:30:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-17T13:45:00","readyForCat":"2026-08-18T00:00:00","catComplete":"2026-08-18T12:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-02.012","job":"M200480-02","unitNo":12,"handoverDate":"2026-08-17T14:36:00","handoverStatusRaw":"Vents missing;#Breaker Barriers missing;#Stickers missing","testingStart":"2026-08-17T14:40:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-18T13:26:00","readyForCat":"2026-08-18T13:00:00","catComplete":"2026-08-18T14:45:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-02.013","job":"M200480-02","unitNo":13,"handoverDate":"2026-08-19T14:28:00","handoverStatusRaw":"Stickers missing;#Door handles missing;#Door stops missing;#Breaker Barriers missing ;#Door stiffener missing","testingStart":"2026-08-20T06:30:00","testingStartStatusRaw":null,"internalTestComplete":null,"readyForCat":"2026-08-21T06:30:00","catComplete":"2026-08-21T09:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":"Values were not recoreded correctly for testing completion and were intentionally left blank "},{"unit":"M200480-02.014","job":"M200480-02","unitNo":14,"handoverDate":"2026-08-18T13:47:00","handoverStatusRaw":"Vents missing;#Doors missing;#Lamicoids missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#Breaker Barriers missing;#Filters missing;#Transformer Secondary wires missing;#Wrong Zipties on 35kVcabels","testingStart":"2026-08-18T14:30:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-19T14:00:00","readyForCat":"2026-08-21T06:30:00","catComplete":"2026-08-21T09:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":"Testing started before official handover. Thi swas done to stay on top of production and not have a flood of units all at once. "},{"unit":"M200480-02.015","job":"M200480-02","unitNo":15,"handoverDate":"2026-08-26T06:46:00","handoverStatusRaw":"Breaker Barriers missing;#Door handles missing;#Vents missing;#Stickers missing;#Filters missing;#Door Grounding incomplete","testingStart":"2026-08-25T07:00:00","testingStartStatusRaw":"Same as Handover status","internalTestComplete":"2026-08-27T12:00:00","readyForCat":"2026-08-27T17:00:00","catComplete":"2026-08-28T15:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-02.016","job":"M200480-02","unitNo":16,"handoverDate":"2026-08-27T10:30:00","handoverStatusRaw":"Stickers missing;#Unit Complete","testingStart":"2026-08-26T12:00:00","testingStartStatusRaw":"Mechanical Assembly incomplete","internalTestComplete":"2026-08-27T15:00:00","readyForCat":"2026-08-28T09:00:00","catComplete":"2026-08-28T15:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":"Testing started before mechanical assembly was complete for training purposes and to attempt to complete the unit for CAT. Ujjwol functional training  "},{"unit":"M200480-02.017","job":"M200480-02","unitNo":17,"handoverDate":"2026-08-31T12:00:00","handoverStatusRaw":"Vents missing;#Door Grounding incomplete;#Door stops missing;#Stickers missing","testingStart":"2026-08-31T07:47:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Door grounds missing;#Wind stops missing;#Mechanical Assembly incomplete;#Doors missing;#Breaker doors missing;#Door stiffeners missing;#Stickers missing;#Transformer Rating plate not installed on exterior door ","internalTestComplete":"2026-09-01T12:00:00","readyForCat":"2026-09-03T10:00:00","catComplete":"2026-09-04T12:00:00","stage":"CAT Complete","catOutstandingItems":["Breaker doors not installed"],"catOutstandingCount":1,"isClean":false,"notes":null},{"unit":"M200480-02.018","job":"M200480-02","unitNo":18,"handoverDate":"2026-09-01T14:24:00","handoverStatusRaw":"Stickers missing;#Door Grounding incomplete;#Door stops missing;#transformer rating plate not installed;#Breaker barriers missing;#Filters missing","testingStart":"2026-09-01T09:15:00","testingStartStatusRaw":"Filters missing;#Door grounds missing;#Wind stops missing;#Wiring incomplete;#Stickers missing;#Breaker barriers missing;#Transformer Rating plate not installed on exterior door ;#Breaker doors missing","internalTestComplete":"2026-09-02T15:00:00","readyForCat":"2026-09-03T12:00:00","catComplete":"2026-09-04T12:00:00","stage":"CAT Complete","catOutstandingItems":["Breaker doors not installed"],"catOutstandingCount":1,"isClean":false,"notes":"Unit not complete until 01-09-2026 after lunch, Unit was used as a training unit "},{"unit":"M200480-02.019","job":"M200480-02","unitNo":19,"handoverDate":"2026-09-03T12:43:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Breaker Barriers missing;#Filters missing","testingStart":"2026-09-02T14:30:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Wind stops missing;#Breaker doors missing;#Door stiffeners missing;#Wiring incomplete","internalTestComplete":"2026-09-08T08:00:00","readyForCat":"2026-09-08T15:00:00","catComplete":"2026-09-08T09:00:00","stage":"CAT Complete","catOutstandingItems":["Battery connections not torqued","Door grounds missing","Filters missing","Windstops not installed"],"catOutstandingCount":4,"isClean":false,"notes":"Wiring issues delayed testing. Wires with different tags on both ends are\u00a0in the correct terminal. Testing was\u00a0completed the\u00a0morning of CAT assembly did not have time to take the unit to ready for CAT after testing and before the CAT "},{"unit":"M200480-02.020","job":"M200480-02","unitNo":20,"handoverDate":"2026-09-04T13:50:00","handoverStatusRaw":"Vents missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#Breaker Barriers missing ;#Door stiffener missing;#Filters missing;#transformer rating plate not installed","testingStart":"2026-09-08T08:30:00","testingStartStatusRaw":"Breaker barriers missing;#Unit complete","internalTestComplete":"2026-09-09T10:30:00","readyForCat":"2026-09-10T10:00:00","catComplete":"2026-09-11T11:12:00","stage":"CAT Complete","catOutstandingItems":["Fuses missing","PT cover missing"],"catOutstandingCount":2,"isClean":false,"notes":null},{"unit":"M200480-02.021","job":"M200480-02","unitNo":21,"handoverDate":"2026-09-09T11:14:00","handoverStatusRaw":"Vents missing;#Door stops missing;#Stickers missing;#Door Grounding incomplete;#Filters missing","testingStart":"2026-09-09T12:00:00","testingStartStatusRaw":"SAME AS HANDOVER STATUS","internalTestComplete":"2026-09-10T14:00:00","readyForCat":"2026-09-24T13:00:00","catComplete":"2026-09-11T11:08:00","stage":"CAT Complete","catOutstandingItems":["Doors missing","Fuses missing","PT cover missing","Door grounds missing"],"catOutstandingCount":4,"isClean":false,"notes":null},{"unit":"M200480-02.022","job":"M200480-02","unitNo":22,"handoverDate":"2026-09-10T15:17:00","handoverStatusRaw":"Door Grounding incomplete;#Door stops missing;#Stickers missing;#Breaker Barriers missing;#transformer rating plate not installed","testingStart":"2026-09-11T06:30:00","testingStartStatusRaw":"SAME AS HANDOVER STATUS","internalTestComplete":"2026-09-10T15:35:00","readyForCat":"2026-09-24T13:30:00","catComplete":"2026-09-14T08:10:00","stage":"CAT Complete","catOutstandingItems":["Windstops not installed","Breaker doors not installed","Stickers missing","LAs disconnected","CPT1 Secondary disconnected"],"catOutstandingCount":5,"isClean":false,"notes":null},{"unit":"M200480-02.023","job":"M200480-02","unitNo":23,"handoverDate":"2026-09-17T13:01:00","handoverStatusRaw":null,"testingStart":"2026-09-17T06:30:00","testingStartStatusRaw":"Mechanical Assembly incomplete","internalTestComplete":"2026-09-17T13:00:00","readyForCat":null,"catComplete":"2026-09-18T08:00:00","stage":"CAT Complete","catOutstandingItems":["Fuses missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-02.024","job":"M200480-02","unitNo":24,"handoverDate":"2026-09-18T07:40:00","handoverStatusRaw":null,"testingStart":"2026-09-15T06:30:00","testingStartStatusRaw":"Mechanical Assembly incomplete;#Breaker doors missing;#Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Windstops missing;#Door stiffeners missing;#Phase Stickers Missing;#Stickers missing;#Transformer Rating plate not installed on exterior door ","internalTestComplete":"2026-09-18T10:32:00","readyForCat":null,"catComplete":"2026-09-21T08:00:00","stage":"CAT Complete","catOutstandingItems":["Fuses missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-02.025","job":"M200480-02","unitNo":25,"handoverDate":"2026-09-22T11:35:00","handoverStatusRaw":"Doors missing;#Door stops missing;#Door handles missing;#Stickers missing;#Breaker Barriers missing ;#Door hasp missing;#Vents Missing;#transformer rating plate not installed;#Filters missing","testingStart":"2026-09-21T09:00:00","testingStartStatusRaw":"Mechanical Assembly incomplete;#Vents Missing;#Doors missing;#Filters missing;#Door grounds missing;#Wind stops missing","internalTestComplete":"2026-09-22T13:02:00","readyForCat":null,"catComplete":"2026-09-24T09:35:00","stage":"CAT Complete","catOutstandingItems":["Filters missing"],"catOutstandingCount":1,"isClean":false,"notes":null},{"unit":"M200480-02.026","job":"M200480-02","unitNo":26,"handoverDate":"2026-09-23T09:00:00","handoverStatusRaw":"Same as Testing start","testingStart":"2026-09-23T06:30:00","testingStartStatusRaw":"Filters missing;#Doors missing;#Door grounds missing;#Vents Missing;#Wind stops missing;#Breaker barriers missing;#Missing jeo;#Phase Stickers Missing;#Rating Plates not Installed;#Stickers missing;#Transformer Rating plate not installed on exterior door","internalTestComplete":"2026-09-24T09:00:00","readyForCat":null,"catComplete":"2026-09-24T10:19:00","stage":"CAT Complete","catOutstandingItems":["Filters missing","Door grounds missing","Doors missing","Stickers missing"],"catOutstandingCount":4,"isClean":false,"notes":null},{"unit":"M200480-02.027","job":"M200480-02","unitNo":27,"handoverDate":"2026-09-29T13:29:57","handoverStatusRaw":null,"testingStart":"2026-09-29T08:00:00","testingStartStatusRaw":"Mechanical Assembly incomplete;#Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Wind stops missing;#Transformer Rating plate not installed on exterior door ;#Stickers missing","internalTestComplete":"2026-09-30T08:00:00","readyForCat":"2026-09-30T13:21:00","catComplete":null,"stage":"Ready For CAT","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-02.028","job":"M200480-02","unitNo":28,"handoverDate":"2026-09-30T10:00:00","handoverStatusRaw":null,"testingStart":"2026-09-30T07:00:00","testingStartStatusRaw":null,"internalTestComplete":null,"readyForCat":null,"catComplete":null,"stage":"Testing In Progress","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.033","job":"M200480-03","unitNo":33,"handoverDate":"2026-08-13T10:41:00","handoverStatusRaw":"Vents missing;#Filters missing;#Grounding transformer not installed;#Stickers missing;#Door handles missing","testingStart":"2026-08-13T12:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-21T15:01:00","readyForCat":"2026-08-21T15:01:00","catComplete":"2026-08-18T15:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-03.034","job":"M200480-03","unitNo":34,"handoverDate":"2026-08-15T06:59:00","handoverStatusRaw":"Vents missing;#Grounding transformer not installed;#Door handles missing;#Stickers missing;#Filters missing","testingStart":"2026-08-17T06:30:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-20T15:00:00","readyForCat":"2026-08-21T15:00:00","catComplete":"2026-08-18T15:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-03.35","job":"M200480-03","unitNo":35,"handoverDate":"2026-08-15T06:19:00","handoverStatusRaw":"Vents missing;#Door handles missing;#Stickers missing;#Grounding transformer not installed;#Filters missing","testingStart":"2026-08-17T12:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-20T12:01:00","readyForCat":"2026-08-21T12:01:00","catComplete":"2026-08-18T14:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-03.036","job":"M200480-03","unitNo":36,"handoverDate":"2026-08-15T06:04:00","handoverStatusRaw":"Vents missing;#Stickers missing;#Door handles missing;#Door stops missing;#Filters missing;#Grounding Transformer Missing;#Resistor Missing","testingStart":"2026-08-17T13:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-20T12:00:00","readyForCat":"2026-08-21T12:00:00","catComplete":"2026-08-18T15:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-03.037","job":"M200480-03","unitNo":37,"handoverDate":"2026-08-18T12:27:00","handoverStatusRaw":"Vents missing;#Stickers missing;#Filters missing;#Grounding transformer not installed;#Door Grounding incomplete;#CT's not installed;#Grounding Transformer Missing;#Resistor Missing;#Doors missing;#Missing N cable;#NCT missing","testingStart":"2026-08-18T07:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-21T12:00:00","readyForCat":"2026-08-20T12:00:00","catComplete":"2026-08-18T15:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-03.038","job":"M200480-03","unitNo":38,"handoverDate":"2026-08-20T17:00:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door stops missing;#Stickers missing;#Grounding Transformer Missing;#Breaker Barriers missing ;#Filters missing","testingStart":"2026-08-19T07:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-21T15:00:00","readyForCat":"2026-08-27T09:00:00","catComplete":"2026-08-24T12:00:00","stage":"CAT Complete","catOutstandingItems":["Vents missing","Filters missing","N cable missing","Stickers missing","Barriers not installed","internal supports not complete"],"catOutstandingCount":6,"isClean":false,"notes":"Testing started before official handover. This was done to stay on top of production and not have a flood of units all at once."},{"unit":"M200480-03.039","job":"M200480-03","unitNo":39,"handoverDate":"2026-08-20T06:32:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Door stops missing;#Grounding Transformer Missing;#CPT1 missing N wire;#Stickers missing;#Door handles missing;#Filters missing","testingStart":"2026-08-19T11:00:00","testingStartStatusRaw":null,"internalTestComplete":null,"readyForCat":"2026-08-27T09:00:00","catComplete":"2026-08-24T12:00:00","stage":"CAT Complete","catOutstandingItems":["Vents missing","Filters missing","N cable missing","Stickers missing","Barriers not installed","Door handles missing","Phase identification missing","internal supports not complete"],"catOutstandingCount":8,"isClean":false,"notes":"Testing started before official handover. Thi swas done to stay on top of production and not have a flood of units all at once."},{"unit":"M200480-03.040","job":"M200480-03","unitNo":40,"handoverDate":"2026-08-20T09:55:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#Grounding Transformer Missing;#Missing N cable;#CPT1 missing N wire","testingStart":"2026-08-19T14:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-27T09:00:00","readyForCat":"2026-08-27T09:00:00","catComplete":"2026-08-24T12:00:00","stage":"CAT Complete","catOutstandingItems":["Vents missing","Internal supports not installed","Filters missing","N cable missing","Lexan covers missing","Phase identification missing","PT Jumper not installed","Door handles missing"],"catOutstandingCount":8,"isClean":false,"notes":"- Handover gtr known to be missing\nTesting started before official handover. This was done to stay on top of production and not have a flood of units all at once."},{"unit":"M200480-03.041","job":"M200480-03","unitNo":41,"handoverDate":"2026-08-21T07:47:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Missing N cable;#Door stops missing;#Door handles missing;#Stickers missing;#Grounding Transformer Missing;#Filters missing","testingStart":"2026-08-24T07:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-24T15:00:00","readyForCat":"2026-08-28T06:00:00","catComplete":"2026-08-28T09:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":"gtr known to be missing on handover"},{"unit":"M200480-03.042","job":"M200480-03","unitNo":42,"handoverDate":"2026-08-20T12:40:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Missing N cable;#Door stops missing;#Door handles missing;#Stickers missing;#Grounding Transformer Missing;#Resistor Missing","testingStart":"2026-08-20T14:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-25T07:00:00","readyForCat":"2026-08-31T08:00:00","catComplete":"2026-08-24T12:00:00","stage":"CAT Complete","catOutstandingItems":["Testing not complete","Vents missing","Filters missing","internal supports not complete","Phase identification missing","PT Jumper not installed","Stickers missing","Door handles missing","Lexan covers missing","Barriers not installed"],"catOutstandingCount":10,"isClean":false,"notes":"GTR known to be missing for handover"},{"unit":"M200480-03.043","job":"M200480-03","unitNo":43,"handoverDate":"2026-08-20T12:42:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Missing N cable;#Door stops missing;#Door handles missing;#Stickers missing;#Grounding Transformer Missing;#Resistor Missing;#Filters missing","testingStart":"2026-08-21T09:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-25T12:00:00","readyForCat":"2026-08-31T08:01:00","catComplete":"2026-08-24T12:00:00","stage":"CAT Complete","catOutstandingItems":["Vents missing","Filters missing","GTR missing","Resistor missing","N cable missing","Stickers missing","Phase identification missing","internal supports not complete","Door handles missing","Lexan covers missing","PT Jumper not installed","Barriers not installed"],"catOutstandingCount":12,"isClean":false,"notes":"GTR known to be missing for handover "},{"unit":"M200480-03.044","job":"M200480-03","unitNo":44,"handoverDate":"2026-08-21T15:35:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Missing N cable;#Door stops missing;#Door handles missing;#Stickers missing;#Grounding Transformer Missing;#Resistor Missing;#CPT1 missing N wire;#PT Jumper missing","testingStart":"2026-08-21T14:00:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-27T10:30:00","readyForCat":"2026-08-28T06:00:00","catComplete":"2026-08-28T10:30:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":"gtr known to be missing at handover"},{"unit":"M200480-03.045","job":"M200480-03","unitNo":45,"handoverDate":"2026-08-24T00:46:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Missing N cable;#Door stops missing;#Door handles missing;#Stickers missing;#PT Jumper missing;#Grounding Transformer Missing;#Resistor Missing;#Door stiffener missing;#Filters missing;#CPT1 secondary cables not terminated;#CPT1 missing N wire;#CPT1 not fastened down ","testingStart":"2026-08-24T06:30:00","testingStartStatusRaw":null,"internalTestComplete":"2026-08-26T12:00:00","readyForCat":"2026-08-28T06:00:00","catComplete":"2026-08-28T10:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":"GTR and PT jumper known to be missing "},{"unit":"M200480-03.046","job":"M200480-03","unitNo":46,"handoverDate":"2026-08-25T10:47:00","handoverStatusRaw":"Vents missing;#Door Grounding incomplete;#Missing N cable;#Door stops missing;#Door handles missing;#Stickers missing;#Grounding Transformer Missing;#Resistor Missing;#Filters missing;#PT Jumper missing","testingStart":"2026-08-25T07:00:00","testingStartStatusRaw":"Same as Handover status","internalTestComplete":"2026-08-26T10:00:00","readyForCat":"2026-08-28T06:00:00","catComplete":"2026-08-28T11:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":"GTR and pt jumper known to be missing"},{"unit":"M200480-03.047","job":"M200480-03","unitNo":47,"handoverDate":"2026-08-27T07:51:00","handoverStatusRaw":"Vents missing;#Door handles missing;#transformer rating plate not installed;#GTR secondaries not wired","testingStart":"2026-08-26T12:00:00","testingStartStatusRaw":"N cable Missing;#PT Jumper missing;#Vents Missing;#Filters missing;#Missing jeo;#GTR Missing;#Resistor missing","internalTestComplete":"2026-08-27T14:00:00","readyForCat":"2026-08-27T15:00:00","catComplete":"2026-08-31T09:41:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-03.048","job":"M200480-03","unitNo":48,"handoverDate":"2026-08-26T14:30:00","handoverStatusRaw":"Vents missing;#Missing N cable;#Door handles missing;#Stickers missing;#CPT1 not fastened down ;#Filters missing","testingStart":"2026-08-26T14:30:00","testingStartStatusRaw":"Same as Handover status","internalTestComplete":"2026-08-28T16:00:00","readyForCat":"2026-08-31T06:30:00","catComplete":"2026-08-31T09:40:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-03.049","job":"M200480-03","unitNo":49,"handoverDate":"2026-08-26T14:51:00","handoverStatusRaw":"Vents missing;#Missing N cable;#Door handles missing;#Stickers missing;#CPT1 not fastened down ;#Filters missing","testingStart":"2026-08-26T14:30:00","testingStartStatusRaw":"Same as Handover status","internalTestComplete":"2026-08-28T16:01:00","readyForCat":"2026-08-31T06:30:00","catComplete":"2026-08-31T09:40:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":null},{"unit":"M200480-03.050","job":"M200480-03","unitNo":50,"handoverDate":null,"handoverStatusRaw":null,"testingStart":"2026-08-02T08:00:00","testingStartStatusRaw":null,"internalTestComplete":null,"readyForCat":"2026-09-11T12:00:00","catComplete":"2026-09-08T09:00:00","stage":"CAT Complete","catOutstandingItems":["NGR wiring not complete","Barriers not installed","CT bracket not tight","400A Transfer switch missing"],"catOutstandingCount":4,"isClean":false,"notes":"An issue with the transformer caused a non-standard completion of the unit, and all processes were not recorded correctly "},{"unit":"M200480-03.051","job":"M200480-03","unitNo":51,"handoverDate":"2026-08-31T10:01:00","handoverStatusRaw":"Door Grounding incomplete;#Door stops missing;#Missing N cable;#400A breaker guards not installed;#Door stiffener missing;#transformer rating plate not installed","testingStart":"2026-08-31T11:00:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Wind stops missing;#GND Bus Incomplete;#Boots Missing","internalTestComplete":"2026-09-01T15:00:00","readyForCat":"2026-09-03T13:00:00","catComplete":"2026-09-08T09:00:00","stage":"CAT Complete","catOutstandingItems":["400A Transfer switch missing"],"catOutstandingCount":1,"isClean":false,"notes":null},{"unit":"M200480-03.052","job":"M200480-03","unitNo":52,"handoverDate":"2026-09-02T06:58:00","handoverStatusRaw":"Vents missing;#Transfer kit missing;#Door handles missing;#400A breaker guards not installed;#Filters missing;#transformer rating plate not installed","testingStart":"2026-08-31T13:00:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Door grounds missing;#Wind stops missing;#Bus Missing","internalTestComplete":"2026-09-01T14:00:00","readyForCat":"2026-09-04T12:00:00","catComplete":"2026-09-04T12:00:00","stage":"CAT Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":true,"notes":"CAT and ready for CAT not recorded properly values assigned"},{"unit":"M200480-03.053","job":"M200480-03","unitNo":53,"handoverDate":"2026-09-04T07:57:00","handoverStatusRaw":"Same as Testing start","testingStart":"2026-09-04T07:00:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#400A MTS missing;#Wind stops missing","internalTestComplete":"2026-09-04T15:00:00","readyForCat":"2026-09-09T12:00:00","catComplete":"2026-09-08T09:00:00","stage":"CAT Complete","catOutstandingItems":["Internal supports not installed","400A Transfer switch missing"],"catOutstandingCount":2,"isClean":false,"notes":"Wiring handover 04-sep-2026 6:30am"},{"unit":"M200480-03.054","job":"M200480-03","unitNo":54,"handoverDate":"2026-09-04T16:41:00","handoverStatusRaw":"Door stops missing;#Stickers missing;#400A breaker guards not installed;#CPT1 missing N wire;#Vents missing;#Transfer kit missing;#transformer rating plate not installed;#Door handles missing;#Filters missing;#Door hasp missing","testingStart":"2026-09-03T07:00:00","testingStartStatusRaw":"Vents Missing;#Doors missing;#Wind stops missing;#Door grounds missing;#Filters missing;#Transformer Rating plate not installed on exterior door;#Stickers missing;#Mechanical Assembly incomplete;#CPT! N cable not installed;#Boots Missing;#MISSING CPT-1 CABLES","internalTestComplete":"2026-09-09T10:15:00","readyForCat":"2026-09-14T12:00:00","catComplete":"2026-09-11T11:03:00","stage":"CAT Complete","catOutstandingItems":["Filters missing","Transfer kit not complete","Doors missing bolts","Stickers missing","PT covers not installed"],"catOutstandingCount":5,"isClean":false,"notes":"Wiring complete 02-Sep-2026 12:39PM Mech assebly was not complete "},{"unit":"M200480-03.055","job":"M200480-03","unitNo":55,"handoverDate":"2026-09-04T16:41:00","handoverStatusRaw":"Vents missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#CPT1 secondary wiring missing;#Camlock Wiring missing;#Door hasp missing;#Transfer kit missing;#transformer rating plate not installed;#Filters missing;#CB1 Wiring not complete","testingStart":"2026-09-03T13:30:00","testingStartStatusRaw":"Mechanical Assembly incomplete;#Vents Missing;#Filters missing;#Fork Lugs on door crimped wrong;#400A breakers missing;#Stickers missing","internalTestComplete":"2026-09-09T10:05:00","readyForCat":"2026-09-23T15:30:00","catComplete":"2026-09-11T10:55:00","stage":"CAT Complete","catOutstandingItems":["Filters missing","Stickers missing","400A breakers missing","Doors missing bolts","Transfer kit missing","PT covers not installed"],"catOutstandingCount":6,"isClean":false,"notes":"TESTING STARTED BEFORE HANDOVER UNit completed in REV USA"},{"unit":"M200480-03.056","job":"M200480-03","unitNo":56,"handoverDate":"2026-09-04T16:41:00","handoverStatusRaw":"Vents missing;#Door stops missing;#Door handles missing;#Stickers missing;#Missing N cable;#Filters missing;#CPT1 secondary wiring missing;#400A breakers missing;#480V bus missing;#Beacons and lights incomplete;#Camlock Wiring missing;#400A breaker mounting missing","testingStart":"2026-09-04T09:30:00","testingStartStatusRaw":"SAME AS HANDOVER STATUS","internalTestComplete":"2026-09-09T10:25:00","readyForCat":"2026-09-24T12:02:00","catComplete":"2026-09-11T10:50:00","stage":"CAT Complete","catOutstandingItems":["Filters missing","Door bolts missing","Stickers missing","400A breakers missing","PT covers missing","Transfer kit missing","NGR connection not complete"],"catOutstandingCount":7,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.057","job":"M200480-03","unitNo":57,"handoverDate":"2026-09-08T15:00:00","handoverStatusRaw":"Vents missing;#Door stops missing;#Door handles missing;#Stickers missing;#400A breaker guards not installed;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#Door hasp missing;#Filters missing;#Transfer kit missing;#transformer rating plate not installed","testingStart":"2026-09-08T13:00:00","testingStartStatusRaw":"SAME AS HANDOVER STATUS","internalTestComplete":"2026-09-09T10:35:00","readyForCat":"2026-09-24T12:01:00","catComplete":"2026-09-11T10:48:00","stage":"CAT Complete","catOutstandingItems":["Filters missing","Stickers missing","PT covers not installed","Door bolts missing","400A breakers missing","Transfer kit missing"],"catOutstandingCount":6,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.058","job":"M200480-03","unitNo":58,"handoverDate":"2026-09-10T13:11:00","handoverStatusRaw":"Vents missing;#Door stops missing;#Stickers missing;#400A breaker guards not installed;#400A breakers missing;#480V bus missing;#Door hasp missing;#Filters missing","testingStart":"2026-09-09T12:30:00","testingStartStatusRaw":"Same as Handover","internalTestComplete":"2026-09-11T11:15:00","readyForCat":"2026-09-28T12:00:00","catComplete":"2026-09-14T09:30:00","stage":"CAT Complete","catOutstandingItems":["Internal supports not installed","400A breakers missing","400A Transfer switch missing","Barriers not installed","CPT1 Secondary disconnected","Fuses missing","NGR connection not complete","PT covers not installed","Phase identification missing","MISSING RATING PLATE","MISSING PT FUSES","MECHANICAL ASSEMBLY INCOMPLETE","internal supports not complete","Door bolts missing","MISSING BARRIERS"],"catOutstandingCount":15,"isClean":false,"notes":"Phase Stickers are missing, NGR Resistor is not connected, CPT 2 Ground cable is not torqued by the time testing is Completed. UNit completed in REV USA"},{"unit":"M200480-03.059","job":"M200480-03","unitNo":59,"handoverDate":"2026-09-08T15:00:00","handoverStatusRaw":"Vents missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#400A breaker guards not installed;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#CPT1 secondary wiring missing;#Door hasp missing;#Filters missing;#Transfer kit missing;#transformer rating plate not installed","testingStart":"2026-09-09T06:45:00","testingStartStatusRaw":"Same as Handover status","internalTestComplete":"2026-09-11T11:30:00","readyForCat":"2026-09-24T12:01:00","catComplete":"2026-09-14T09:45:00","stage":"CAT Complete","catOutstandingItems":["Filters missing","CPT1 missing N cable","Internal supports not installed","400A Transfer switch missing","400A breakers missing","Barriers not installed","CPT1 Secondary disconnected","Door bolts missing","MECHANICAL ASSEMBLY INCOMPLETE","MISSING PT FUSES","MISSING RATING PLATE","NGR connection not complete","PT covers missing","Phase identification missing","internal supports not complete","MISSING BARRIERS"],"catOutstandingCount":16,"isClean":false,"notes":"Vents and Filters missing, Barrier missing wen test is comleted. UNit completed in REV USA"},{"unit":"M200480-03.060","job":"M200480-03","unitNo":60,"handoverDate":"2026-09-10T13:06:00","handoverStatusRaw":"Vents missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#400A breaker guards not installed;#400A breakers missing;#480V bus missing;#Filters missing;#Door hasp missing","testingStart":"2026-09-10T13:00:00","testingStartStatusRaw":"Same as Handover status","internalTestComplete":"2026-09-11T12:00:00","readyForCat":"2026-09-28T12:00:00","catComplete":"2026-09-14T10:00:00","stage":"CAT Complete","catOutstandingItems":["Filters missing","Internal supports not installed","400A Transfer switch missing","400A breakers missing","CPT1 Secondary disconnected","Door bolts missing","MECHANICAL ASSEMBLY INCOMPLETE","MISSING PT FUSES","MISSING RATING PLATE","PT covers missing","Phase identification missing","internal supports not complete","NGR connection not complete","MISSING BARRIERS"],"catOutstandingCount":14,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.061","job":"M200480-03","unitNo":61,"handoverDate":"2026-09-10T10:08:00","handoverStatusRaw":"Vents missing;#Door Grounding incomplete;#Door stops missing;#Stickers missing;#400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#Door hasp missing;#Filters missing;#Transfer kit missing","testingStart":"2026-09-10T08:00:00","testingStartStatusRaw":"SAME AS HANDOVER STATUS","internalTestComplete":"2026-09-11T13:00:00","readyForCat":"2026-09-28T12:00:00","catComplete":"2026-09-14T10:20:00","stage":"CAT Complete","catOutstandingItems":["Filters missing","Internal supports not installed","400A Transfer switch missing","400A breakers missing","CPT1 Secondary disconnected","Door bolts missing","MECHANICAL ASSEMBLY INCOMPLETE","MISSING PT FUSES","MISSING RATING PLATE","PT covers missing","Phase identification missing","internal supports not complete","Barriers not installed"],"catOutstandingCount":13,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.062","job":"M200480-03","unitNo":62,"handoverDate":"2026-09-11T11:13:00","handoverStatusRaw":"Same as Testing start","testingStart":"2026-09-14T07:00:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Wind stops missing;#480V BREAKERS MISSING;#Missing jeo;#Stickers missing;#Transformer Rating plate not installed on exterior door;#N cable Missing;#Resistor Not Connected;#CPT! N cable not installed;#CB1 Breakers wiring is not done","internalTestComplete":"2026-09-16T07:45:00","readyForCat":"2026-09-29T12:00:00","catComplete":"2026-09-18T09:00:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"Completion delayed due to hipot being on site UNit completed in REV USA"},{"unit":"M200480-03.063","job":"M200480-03","unitNo":63,"handoverDate":"2026-09-14T16:34:00","handoverStatusRaw":"Missing N cable;#Stickers missing;#Door handles missing;#Vents Missing;#Filters misssing;#Door stops missing;#CPT1 missing N wire;#400A breaker guards not installed;#400A breakers missing;#400A breaker mounting missing;#Beacons and lights incomplete;#CB1 Wiring not complete;#transformer rating plate not installed","testingStart":"2026-09-14T10:30:00","testingStartStatusRaw":"Same as Handover","internalTestComplete":"2026-09-16T08:30:00","readyForCat":"2026-09-29T12:00:00","catComplete":"2026-09-18T09:30:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"Completion delayed due to hipot being on site UNit completed in REV USA"},{"unit":"M200480-03.064","job":"M200480-03","unitNo":64,"handoverDate":"2026-09-14T16:34:00","handoverStatusRaw":"Same as Testing start","testingStart":"2026-09-14T12:30:00","testingStartStatusRaw":"N cable Missing;#Vents Missing;#Filters missing;#Wind stops missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#CB1 Wiring not Done;#Resistor Not Connected;#Phase Stickers Missing;#400A MTS missing;#400A breakers missing;#CPT! N cable not installed;#Transformer Rating plate not installed on exterior door;#Windstops missing","internalTestComplete":"2026-09-16T09:00:00","readyForCat":"2026-09-30T12:00:00","catComplete":"2026-09-18T09:45:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"Completion delayed due to hipot being on site UNit completed in REV USA"},{"unit":"M200480-03.065","job":"M200480-03","unitNo":65,"handoverDate":"2026-09-21T06:52:00","handoverStatusRaw":"Same as Testing start","testingStart":"2026-09-17T07:00:00","testingStartStatusRaw":"Mechanical Assembly incomplete;#480V BREAKERS MISSING;#400A MTS missing;#Boots Missing;#Bus Missing","internalTestComplete":"2026-09-21T13:45:00","readyForCat":"2026-10-05T12:00:00","catComplete":"2026-09-24T07:30:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"We could not able do more test due to missing bracket UNit completed in REV USA"},{"unit":"M200480-03.066","job":"M200480-03","unitNo":66,"handoverDate":"2026-09-15T09:39:00","handoverStatusRaw":"Vents missing;#CPT1 missing N wire;#Stickers missing;#Door hasp missing;#Filters missing;#PT JEO connectoion not complete;#GTR N cable not connected;#400A breaker guards not installed;#400A breakers missing","testingStart":"2026-09-15T14:00:00","testingStartStatusRaw":"SAME AS HANDOVER STATUS;#Transformer Rating plate not installed on exterior door;#Rating Plates not Installed","internalTestComplete":"2026-09-16T15:30:00","readyForCat":"2026-09-30T12:00:00","catComplete":"2026-09-18T10:00:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.067","job":"M200480-03","unitNo":67,"handoverDate":"2026-09-16T10:10:00","handoverStatusRaw":"Vents missing;#Stickers missing;#400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#Door hasp missing;#Filters misssing;#transformer rating plate not installed","testingStart":"2026-09-16T07:30:00","testingStartStatusRaw":"SAME AS HANDOVER STATUS;#Rating Plate Not Installed","internalTestComplete":"2026-09-16T15:45:00","readyForCat":"2026-10-05T12:00:00","catComplete":"2026-09-18T10:15:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.068","job":"M200480-03","unitNo":68,"handoverDate":"2026-09-16T09:28:00","handoverStatusRaw":"Door handles missing;#Stickers missing;#400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#Door hasp missing;#Filters missing;#GTR N cable not connected;#Vents Missing","testingStart":"2026-09-16T10:30:00","testingStartStatusRaw":"SAME AS HANDOVER STATUS","internalTestComplete":"2026-09-16T16:00:00","readyForCat":"2026-10-05T12:00:00","catComplete":"2026-09-18T10:30:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.069","job":"M200480-03","unitNo":69,"handoverDate":"2026-09-21T06:52:00","handoverStatusRaw":"400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#transformer rating plate not installed","testingStart":"2026-09-18T07:00:00","testingStartStatusRaw":"Filters missing;#Wind stops missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Rating Plate Not Installed;#Stickers missing;#Transformer Rating plate not installed on exterior door","internalTestComplete":"2026-09-21T10:30:00","readyForCat":"2026-10-07T00:00:00","catComplete":"2026-09-24T07:45:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.070","job":"M200480-03","unitNo":70,"handoverDate":"2026-09-21T06:52:00","handoverStatusRaw":"400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#transformer rating plate not installed","testingStart":"2026-09-17T13:30:00","testingStartStatusRaw":"Filters missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Breaker barriers missing;#Rating Plate Not Installed;#Resistor Not Connected;#Transformer Rating plate not installed on exterior door;#Boots Missing","internalTestComplete":"2026-09-21T10:35:00","readyForCat":"2026-10-06T12:00:00","catComplete":"2026-09-24T08:00:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.071","job":"M200480-03","unitNo":71,"handoverDate":"2026-09-21T06:52:00","handoverStatusRaw":"400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#Transfer kit missing;#transformer rating plate not installed","testingStart":"2026-09-17T09:45:00","testingStartStatusRaw":"CPT! N cable not installed;#Filters missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Boots Missing;#Door stiffeners missing;#Phase Stickers Missing;#Rating Plate Not Installed;#Resistor Not Connected","internalTestComplete":"2026-09-21T10:40:00","readyForCat":"2026-10-06T12:00:00","catComplete":"2026-09-24T08:30:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.072","job":"M200480-03","unitNo":72,"handoverDate":"2026-09-21T06:52:00","handoverStatusRaw":"400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#Transfer kit missing;#transformer rating plate not installed","testingStart":"2026-09-17T23:40:00","testingStartStatusRaw":"Filters missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Breaker barriers missing;#Rating Plate Not Installed;#Stickers missing","internalTestComplete":"2026-09-21T10:45:00","readyForCat":"2026-10-06T12:00:00","catComplete":"2026-09-24T09:00:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.073","job":"M200480-03","unitNo":73,"handoverDate":"2026-09-23T07:02:00","handoverStatusRaw":"400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#Filters missing;#Transfer kit missing;#transformer rating plate not installed","testingStart":"2026-09-21T14:15:00","testingStartStatusRaw":"Filters missing;#Doors missing;#480V BREAKERS MISSING;#400A MTS missing;#Boots Missing;#Door stiffeners missing;#GND Bus Incomplete;#Phase Stickers Missing;#Rating Plate Not Installed;#Transformer Rating plate not installed on exterior door;#Both PT's not Mounted on Bottom Support","internalTestComplete":"2026-09-23T08:45:00","readyForCat":"2026-10-07T00:00:00","catComplete":"2026-09-25T09:00:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.074","job":"M200480-03","unitNo":74,"handoverDate":"2026-09-23T07:02:00","handoverStatusRaw":"400A breaker mounting missing;#400A breaker guards not installed;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#Filters missing;#Transfer kit missing;#transformer rating plate not installed","testingStart":"2026-09-22T08:30:00","testingStartStatusRaw":"N cable Missing;#PT Jumper missing;#Filters missing;#480V BREAKERS MISSING;#400A MTS missing;#Boots Missing;#CB1 Breakers wiring is not done;#Door stiffeners missing;#Phase Stickers Missing;#Rating Plate Not Installed;#Transformer Rating plate not installed on exterior door","internalTestComplete":"2026-09-23T09:00:00","readyForCat":"2026-10-08T00:00:00","catComplete":"2026-09-25T09:00:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.075","job":"M200480-03","unitNo":75,"handoverDate":"2026-09-23T07:05:00","handoverStatusRaw":"400A breaker guards not installed;#400A breaker mounting missing;#400A breakers missing;#480V bus missing;#CB1 Wiring not complete;#Filters missing;#Transfer kit missing;#transformer rating plate not installed","testingStart":"2026-09-22T10:15:00","testingStartStatusRaw":"N cable Missing;#PT Jumper missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Boots Missing;#Both PT's not Mounted on Bottom Support;#Door stiffeners missing;#GND Bus Incomplete;#Phase Stickers Missing;#Rating Plate Not Installed","internalTestComplete":"2026-09-23T09:15:00","readyForCat":"2026-10-08T00:00:00","catComplete":"2026-09-25T09:00:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing"],"catOutstandingCount":1,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.076","job":"M200480-03","unitNo":76,"handoverDate":"2026-09-23T11:33:00","handoverStatusRaw":null,"testingStart":"2026-09-23T09:55:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Door stiffeners missing;#GND Bus Incomplete;#Phase Stickers Missing;#Rating Plate Not Installed;#Neutral Cable for CPT1 MIssing","internalTestComplete":"2026-09-24T14:00:00","readyForCat":"2026-10-08T00:00:00","catComplete":"2026-09-24T12:00:00","stage":"CAT Complete","catOutstandingItems":["400A breakers missing","Testing incomplete","Internal supports not installed","Barriers not installed","Lexan covers missing"],"catOutstandingCount":5,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.077","job":"M200480-03","unitNo":77,"handoverDate":"2026-09-23T13:00:00","handoverStatusRaw":null,"testingStart":"2026-09-23T12:30:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Wind stops missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Boots Missing;#Neutral Cable for CPT1 MIssing;#Phase Stickers Missing;#Rating Plate Not Installed","internalTestComplete":"2026-09-25T15:00:00","readyForCat":"2026-10-08T00:00:00","catComplete":"2026-09-24T12:00:00","stage":"CAT Complete","catOutstandingItems":["Testing incomplete","Internal supports not installed","400A breakers missing","Barriers not installed","Fuses missing","Lexan covers missing","Transfer kit missing"],"catOutstandingCount":7,"isClean":false,"notes":"UNit completed in REV USA"},{"unit":"M200480-03.078","job":"M200480-03","unitNo":78,"handoverDate":"2026-09-28T13:16:00","handoverStatusRaw":"Doors missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#400A breaker guards not installed;#CPT1 missing N wire;#Door stiffener missing;#Filters misssing","testingStart":"2026-09-24T07:00:00","testingStartStatusRaw":"Mechanical Assembly incomplete;#CPT! N cable not installed;#N cable Missing;#Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Wind stops missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Exterior Light not Installed;#Door stiffeners missing;#Phase Stickers Missing;#Rating Plate Not Installed;#Transformer Rating plate not installed on exterior door","internalTestComplete":"2026-09-28T07:15:00","readyForCat":null,"catComplete":null,"stage":"Internal Testing Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.079","job":"M200480-03","unitNo":79,"handoverDate":"2026-09-28T13:18:00","handoverStatusRaw":"Doors missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#400A breaker guards not installed;#CPT1 missing N wire;#Door stiffener missing;#Filters misssing;#transformer rating plate not installed;#Door hasp missing","testingStart":"2026-09-25T08:00:00","testingStartStatusRaw":"Mechanical Assembly incomplete;#N cable Missing;#Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Wind stops missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Boots Missing;#Door stiffeners missing;#Neutral Cable for CPT1 MIssing;#Phase Stickers Missing;#Rating Plate Not Installed;#Transformer Rating plate not installed on exterior door","internalTestComplete":"2026-09-29T13:30:00","readyForCat":null,"catComplete":null,"stage":"Internal Testing Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.080","job":"M200480-03","unitNo":80,"handoverDate":"2026-09-28T13:18:00","handoverStatusRaw":"Doors missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#400A breaker guards not installed;#Door hasp missing;#Door stiffener missing;#Filters misssing;#transformer rating plate not installed;#Vents Missing;#CPT1 missing N wire","testingStart":"2026-09-28T07:00:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Wind stops missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Door stiffeners missing;#Neutral Cable for CPT1 MIssing;#Phase Stickers Missing;#Rating Plate Not Installed","internalTestComplete":"2026-09-29T13:45:00","readyForCat":null,"catComplete":null,"stage":"Internal Testing Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.081","job":"M200480-03","unitNo":81,"handoverDate":"2026-09-28T13:18:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#400A breaker guards not installed;#CPT1 missing N wire;#Door hasp missing;#Door stiffener missing;#Filters missing;#transformer rating plate not installed;#Vents Missing","testingStart":"2026-09-25T11:00:00","testingStartStatusRaw":"N cable Missing;#Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Wind stops missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Door stiffeners missing;#GND Bus Incomplete;#Phase Stickers Missing;#Neutral Cable for CPT1 MIssing;#Rating Plate Not Installed;#Transformer Rating plate not installed on exterior door","internalTestComplete":"2026-09-29T14:00:00","readyForCat":null,"catComplete":null,"stage":"Internal Testing Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.082","job":"M200480-03","unitNo":82,"handoverDate":"2026-09-29T21:13:00","handoverStatusRaw":"Vents missing;#Doors missing;#Door Grounding incomplete;#Door stops missing;#Door handles missing;#Stickers missing;#CPT1 missing N wire;#Door hasp missing;#Door stiffener missing;#Filters misssing;#transformer rating plate not installed","testingStart":"2026-09-28T08:00:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Doors missing;#Door grounds missing;#Wind stops missing;#MISSING CPT-1 CABLES;#480V BREAKERS MISSING;#400A MTS missing;#Door stiffeners missing;#Phase Stickers Missing;#Transformer Rating plate not installed on exterior door","internalTestComplete":"2026-09-29T14:30:00","readyForCat":null,"catComplete":null,"stage":"Internal Testing Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.083","job":"M200480-03","unitNo":83,"handoverDate":"2026-09-29T09:13:00","handoverStatusRaw":"Same as Testing start","testingStart":"2026-09-29T07:30:00","testingStartStatusRaw":"Doors missing;#Door grounds missing;#Vents Missing;#Filters missing;#Wind stops missing;#Door stiffeners missing;#CB1 Wiring not Done;#Neutral Cable for CPT1 MIssing;#Rating Plate Not Installed;#Resistor Not Connected;#CPT1 Bolts Not Tightened","internalTestComplete":"2026-10-01T15:15:00","readyForCat":null,"catComplete":null,"stage":"Internal Testing Complete","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.084","job":"M200480-03","unitNo":84,"handoverDate":"2026-09-29T11:45:00","handoverStatusRaw":null,"testingStart":"2026-09-29T13:10:00","testingStartStatusRaw":"Doors missing;#Vents Missing;#Filters missing;#Door grounds missing;#Wind stops missing;#Boots Missing;#CPT1 Bolts Not Tightened;#Door stiffeners missing;#Phase Stickers Missing;#Rating Plate Not Installed;#Transformer Rating plate not installed on exterior door;#Stickers missing;#CPT! N cable not installed;#Resistor Not Connected","internalTestComplete":null,"readyForCat":null,"catComplete":null,"stage":"Testing In Progress","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.085","job":"M200480-03","unitNo":85,"handoverDate":null,"handoverStatusRaw":null,"testingStart":"2026-09-30T08:00:00","testingStartStatusRaw":"Gasket Missing;#N cable Missing;#Vents Missing;#Filters missing;#Door grounds missing;#Wind stops missing;#CPT! N cable not installed;#Door stiffeners missing;#CPT1 Bolts Not Tightened;#Rating Plate Not Installed;#Transformer Rating plate not installed on exterior door;#Stickers missing","internalTestComplete":null,"readyForCat":null,"catComplete":null,"stage":"Testing In Progress","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.086","job":"M200480-03","unitNo":86,"handoverDate":null,"handoverStatusRaw":null,"testingStart":"2026-10-01T07:00:00","testingStartStatusRaw":"Filters missing;#Door grounds missing;#Wind stops missing;#Boots Missing;#Phase Stickers Missing;#Rating Plate Not Installed","internalTestComplete":null,"readyForCat":null,"catComplete":null,"stage":"Testing In Progress","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null},{"unit":"M200480-03.087","job":"M200480-03","unitNo":87,"handoverDate":null,"handoverStatusRaw":null,"testingStart":"2026-09-30T14:30:00","testingStartStatusRaw":"Vents Missing;#Filters missing;#Door grounds missing;#Wind stops missing;#CPT! N cable not installed;#CPT1 Bolts Not Tightened;#Door stiffeners missing;#Phase Stickers Missing;#Rating Plate Not Installed;#Resistor Not Connected;#Transformer Rating plate not installed on exterior door","internalTestComplete":null,"readyForCat":null,"catComplete":null,"stage":"Testing In Progress","catOutstandingItems":[],"catOutstandingCount":0,"isClean":false,"notes":null}];
+const PARETO = [{"item":"400A breakers missing","count":23},{"item":"Filters missing","count":15},{"item":"Stickers missing","count":10},{"item":"Barriers not installed","count":10},{"item":"internal supports not complete","count":8},{"item":"Phase identification missing","count":8},{"item":"Internal supports not installed","count":8},{"item":"400A Transfer switch missing","count":7},{"item":"Fuses missing","count":6},{"item":"Door bolts missing","count":6},{"item":"CPT1 Secondary disconnected","count":5},{"item":"Vents missing","count":5},{"item":"Lexan covers missing","count":5},{"item":"N cable missing","count":4},{"item":"Door handles missing","count":4},{"item":"PT covers not installed","count":4},{"item":"Transfer kit missing","count":4},{"item":"PT covers missing","count":4},{"item":"NGR connection not complete","count":4},{"item":"MISSING RATING PLATE","count":4},{"item":"MISSING PT FUSES","count":4},{"item":"MECHANICAL ASSEMBLY INCOMPLETE","count":4},{"item":"Breaker doors not installed","count":3},{"item":"Door grounds missing","count":3},{"item":"PT Jumper not installed","count":3}];
+const JOB_SUMMARY = {"M200480-03":{"total":55,"catComplete":45,"clean":13,"withIssues":32,"inPipeline":10,"totalOutstandingItems":159},"M200480-02":{"total":19,"catComplete":17,"clean":7,"withIssues":10,"inPipeline":2,"totalOutstandingItems":24}};
+const TREND = [{"week":"2026-08-17","total":10,"clean":10,"items":0},{"week":"2026-08-24","total":11,"clean":6,"items":44},{"week":"2026-08-31","total":6,"clean":4,"items":2},{"week":"2026-09-07","total":10,"clean":0,"items":41},{"week":"2026-09-14","total":12,"clean":0,"items":70},{"week":"2026-09-21","total":13,"clean":0,"items":26}];
+const KPIS = {"total":74,"catComplete":62,"clean":20,"withIssues":42,"inPipeline":12,"totalItems":183,"avgItemsPerIssueUnit":4.4,"cleanRate":32.3};
+
+const JOB_NAMES = {
+  'M200480-03': '(230) 15kV GCB — Repeat Order',
+  'M200480-02': '(35) 35kV FCB — Repeat Order',
+};
+
+function severityOf(r){
+  if (r.stage !== 'CAT Complete') return 'pipeline';
+  if (r.catOutstandingCount === 0) return 'clean';
+  if (r.catOutstandingCount <= 3) return 'minor';
+  return 'major';
+}
+RECORDS.forEach(r => r.severity = severityOf(r));
+
+// ===================== KPI cards =====================
+const kpiDefs = [
+  {key:'total', val:KPIS.total, lbl:'Units Tracked', sub:'M200480-02 + -03', cls:'neutral'},
+  {key:'catComplete', val:KPIS.catComplete, lbl:'CAT Complete', sub:(Math.round(KPIS.catComplete/KPIS.total*1000)/10)+'% of fleet', cls:'neutral'},
+  {key:'clean', val:KPIS.clean, lbl:'Clean First-Pass', sub:KPIS.cleanRate+'% of CAT-complete', cls:'good'},
+  {key:'withIssues', val:KPIS.withIssues, lbl:'Flagged at CAT', sub:(100-KPIS.cleanRate).toFixed(1)+'% of CAT-complete', cls:'hero'},
+  {key:'totalItems', val:KPIS.totalItems, lbl:'Open Punch Instances', sub:'logged across all units', cls:'hero'},
+  {key:'avgItemsPerIssueUnit', val:KPIS.avgItemsPerIssueUnit, lbl:'Avg Items / Flagged Unit', sub:'on non-clean units', cls:'warn'},
+  {key:'inPipeline', val:KPIS.inPipeline, lbl:'In Pipeline', sub:'not yet CAT complete', cls:'neutral'},
+];
+const kpiRow = document.getElementById('kpiRow');
+kpiDefs.forEach(k=>{
+  const el = document.createElement('div');
+  el.className = 'kpi '+k.cls;
+  el.dataset.key = k.key;
+  el.innerHTML = `<div class="val">${k.val}</div><div class="lbl">${k.lbl}</div><div class="sub">${k.sub}</div>`;
+  el.addEventListener('mousemove', e=>showTip(e, kpiTipFor(k.key)));
+  el.addEventListener('mouseleave', hideTip);
+  el.addEventListener('click', ()=> applyKpiFilter(k.key));
+  kpiRow.appendChild(el);
+});
+function kpiTipFor(key){
+  const map = {
+    total: 'All serialized units across both tracked Voltagrid orders.',
+    catComplete: 'Units that have reached a recorded CAT Complete timestamp.',
+    clean: 'CAT-complete units logged with zero outstanding punch items ("Unit Complete").',
+    withIssues: 'CAT-complete units that still had open punch-list items recorded at CAT sign-off.',
+    totalItems: 'Sum of every individual punch-list line item logged across all units.',
+    avgItemsPerIssueUnit: 'Average number of outstanding items, counted only on units that had at least one.',
+    inPipeline: 'Units handed over / testing / ready-for-CAT but not yet marked CAT Complete.',
+  };
+  return '<b>'+map[key]+'</b>';
+}
+
+// ===================== drill state =====================
+let drill = { kpi:null, job:null, item:null, week:null };
+
+function applyKpiFilter(key){
+  drill.kpi = (drill.kpi === key) ? null : key;
+  document.querySelectorAll('.kpi').forEach(el=> el.classList.toggle('active', el.dataset.key===drill.kpi));
+  renderChips(); renderTable();
+}
+
+// ===================== Trend chart =====================
+const trendSvg = document.getElementById('trendSvg');
+function renderTrend(){
+  const W = 900, H = 230, padL = 36, padR = 14, padT = 14, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxTotal = Math.max(...TREND.map(t=>t.total), 1);
+  const maxAvg = Math.max(...TREND.map(t=> t.total>t.clean ? t.items/(t.total-t.clean) : 0), 1);
+  const bw = plotW / TREND.length * 0.55;
+  const slot = plotW / TREND.length;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%">`;
+  // gridlines
+  for (let i=0;i<=4;i++){
+    const y = padT + plotH - (plotH*i/4);
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#EEF2F7" stroke-width="1"/>`;
+    svg += `<text x="${padL-6}" y="${y+3}" text-anchor="end" class="trend-axis-label">${Math.round(maxTotal*i/4)}</text>`;
+  }
+
+  const pts = [];
+  TREND.forEach((t,i)=>{
+    const x = padL + slot*i + slot/2 - bw/2;
+    const cleanH = plotH * (t.clean/maxTotal);
+    const issueH = plotH * ((t.total-t.clean)/maxTotal);
+    const yIssueTop = padT + plotH - cleanH - issueH;
+    const yCleanTop = padT + plotH - cleanH;
+    const active = drill.week === t.week;
+    svg += `<rect class="trend-bar" data-week="${t.week}" x="${x}" y="${yIssueTop}" width="${bw}" height="${issueH}" fill="${active?'#991B1B':'var(--red-line)'}" opacity="${active?1:0.88}" rx="2"/>`;
+    svg += `<rect class="trend-bar" data-week="${t.week}" x="${x}" y="${yCleanTop}" width="${bw}" height="${cleanH}" fill="${active?'#15803D':'var(--green-line)'}" opacity="${active?1:0.88}" rx="2"/>`;
+    svg += `<text x="${x+bw/2}" y="${H-14}" text-anchor="middle" class="trend-axis-label">${fmtWeek(t.week)}</text>`;
+    const avgItems = t.total>t.clean ? (t.items/(t.total-t.clean)) : 0;
+    const ly = padT + plotH - plotH*(avgItems/maxAvg);
+    pts.push([x+bw/2, ly, t, avgItems]);
+  });
+
+  // line
+  svg += `<polyline class="trend-line" points="${pts.map(p=>p[0]+','+p[1]).join(' ')}"/>`;
+  pts.forEach(p=>{
+    svg += `<circle class="trend-dot" data-week="${p[2].week}" cx="${p[0]}" cy="${p[1]}" r="4"/>`;
+  });
+
+  svg += `</svg>`;
+  trendSvg.outerHTML = svg;
+  const newSvg = document.querySelector('svg.trend') || document.getElementById('trendSvg');
+}
+function fmtWeek(w){
+  const d = new Date(w+'T00:00:00');
+  return (d.getMonth()+1)+'/'+d.getDate();
+}
+renderTrend();
+
+document.addEventListener('click', (e)=>{
+  const bar = e.target.closest('[data-week]');
+  if (!bar) return;
+  const wk = bar.dataset.week;
+  drill.week = (drill.week === wk) ? null : wk;
+  renderTrend(); renderChips(); renderTable();
+});
+document.addEventListener('mousemove', (e)=>{
+  const bar = e.target.closest('[data-week]');
+  if (!bar) { return; }
+  const t = TREND.find(x=>x.week===bar.dataset.week);
+  if (!t) return;
+  const avg = t.total>t.clean ? (t.items/(t.total-t.clean)).toFixed(1) : '0';
+  showTip(e, `<b>Week of ${fmtWeek(t.week)}</b><br>${t.total} units completed CAT<br>${t.clean} clean &middot; ${t.total-t.clean} flagged<br>${t.items} open items logged &middot; avg ${avg}/flagged unit`);
+});
+document.addEventListener('mouseout', (e)=>{
+  if (e.target.closest('[data-week]')) hideTip();
+});
+
+// ===================== Pareto =====================
+const paretoList = document.getElementById('paretoList');
+function renderPareto(){
+  paretoList.innerHTML = '';
+  const max = PARETO[0] ? PARETO[0].count : 1;
+  PARETO.slice(0,14).forEach(p=>{
+    const row = document.createElement('div');
+    row.className = 'pareto-row' + (drill.item===p.item ? ' active' : '');
+    row.innerHTML = `<div class="pareto-label" title="${p.item}">${p.item}</div>
+      <div class="pareto-track"><div class="pareto-fill" style="width:${(p.count/max*100)}%"></div></div>
+      <div class="pareto-count">${p.count}</div>`;
+    row.addEventListener('click', ()=>{
+      drill.item = (drill.item === p.item) ? null : p.item;
+      renderPareto(); renderChips(); renderTable();
+    });
+    row.addEventListener('mousemove', e=> showTip(e, `<b>${p.item}</b><br>Logged on ${p.count} unit${p.count===1?'':'s'}`));
+    row.addEventListener('mouseleave', hideTip);
+    paretoList.appendChild(row);
+  });
+}
+renderPareto();
+
+// ===================== Job cards =====================
+const jobCards = document.getElementById('jobCards');
+function renderJobCards(){
+  jobCards.innerHTML = '';
+  Object.keys(JOB_SUMMARY).forEach(j=>{
+    const s = JOB_SUMMARY[j];
+    const cleanPct = s.catComplete ? Math.round(s.clean/s.catComplete*100) : 0;
+    const card = document.createElement('div');
+    card.className = 'job-card' + (drill.job===j ? ' active' : '');
+    card.innerHTML = `
+      <div class="jid">${j}</div>
+      <div class="jname">${JOB_NAMES[j]||''}</div>
+      <div class="jstat"><span>Units tracked</span><b>${s.total}</b></div>
+      <div class="jstat"><span>CAT complete</span><b>${s.catComplete}</b></div>
+      <div class="jstat"><span>Clean first-pass</span><b style="color:var(--green)">${s.clean} (${cleanPct}%)</b></div>
+      <div class="jstat"><span>Flagged at CAT</span><b style="color:var(--red)">${s.withIssues}</b></div>
+      <div class="jstat"><span>Open item instances</span><b>${s.totalOutstandingItems}</b></div>
+      <div class="bar-mini"><div class="bar-mini-fill" style="width:${cleanPct}%;background:var(--green-line)"></div></div>`;
+    card.addEventListener('click', ()=>{
+      drill.job = (drill.job === j) ? null : j;
+      renderJobCards(); renderChips(); renderTable();
+    });
+    jobCards.appendChild(card);
+  });
+}
+renderJobCards();
+
+// ===================== Table =====================
+const COLS = [
+  {key:'unit', label:'Unit SN', w:'13%'},
+  {key:'job', label:'Order', w:'10%'},
+  {key:'stage', label:'Stage', w:'15%'},
+  {key:'catComplete', label:'CAT Complete', w:'12%'},
+  {key:'catOutstandingCount', label:'Open Items', w:'10%'},
+  {key:'severity', label:'Status', w:'12%'},
+  {key:'items', label:'Outstanding Items (preview)', w:'28%'},
+];
+let sortKey = 'unit', sortDir = 1;
+const headRow = document.getElementById('headRow');
+COLS.forEach(c=>{
+  const th = document.createElement('th');
+  th.innerHTML = c.label + '<span class="arrow" data-k="'+c.key+'"></span>';
+  th.style.width = c.w;
+  th.addEventListener('click', ()=>{
+    if (sortKey===c.key) sortDir *= -1; else { sortKey=c.key; sortDir=1; }
+    renderTable();
+  });
+  headRow.appendChild(th);
+});
+
+const stageFilter = document.getElementById('stageFilter');
+Array.from(new Set(RECORDS.map(r=>r.stage))).forEach(s=>{
+  const o=document.createElement('option'); o.value=s; o.textContent=s; stageFilter.appendChild(o);
+});
+
+let expandedUnit = null;
+
+function severityBadge(r){
+  if (r.severity==='pipeline') return `<span class="badge pipeline">In pipeline</span>`;
+  if (r.severity==='clean') return `<span class="badge clean">Clean</span>`;
+  if (r.severity==='minor') return `<span class="badge minor">Minor (${r.catOutstandingCount})</span>`;
+  return `<span class="badge major">Major (${r.catOutstandingCount})</span>`;
+}
+function fmtDate(iso){
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2);
+}
+
+function matchesDrill(r){
+  if (drill.job && r.job !== drill.job) return false;
+  if (drill.item && !r.catOutstandingItems.some(it=> it.toLowerCase().includes(drill.item.toLowerCase()) )) return false;
+  if (drill.week){
+    if (!r.catComplete) return false;
+    const d = new Date(r.catComplete);
+    const wkStart = new Date(d); wkStart.setDate(d.getDate() - ((d.getDay()+6)%7));
+    const wkKey = wkStart.toISOString().slice(0,10);
+    if (wkKey !== drill.week) return false;
+  }
+  if (drill.kpi){
+    if (drill.kpi==='total') {}
+    else if (drill.kpi==='catComplete' && r.stage!=='CAT Complete') return false;
+    else if (drill.kpi==='clean' && !r.isClean) return false;
+    else if (drill.kpi==='withIssues' && !(r.stage==='CAT Complete' && !r.isClean)) return false;
+    else if (drill.kpi==='totalItems' && r.catOutstandingCount===0) return false;
+    else if (drill.kpi==='avgItemsPerIssueUnit' && !(r.stage==='CAT Complete' && !r.isClean)) return false;
+    else if (drill.kpi==='inPipeline' && r.stage==='CAT Complete') return false;
+  }
+  return true;
+}
+
+function renderChips(){
+  const chipRow = document.getElementById('chipRow');
+  chipRow.innerHTML = '';
+  const defs = [];
+  if (drill.job) defs.push(['job', drill.job]);
+  if (drill.item) defs.push(['item', drill.item]);
+  if (drill.week) defs.push(['week', 'Week of '+fmtWeek(drill.week)]);
+  if (drill.kpi) defs.push(['kpi', kpiDefs.find(k=>k.key===drill.kpi).lbl]);
+  defs.forEach(([type,label])=>{
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${label}<span class="x">&times;</span>`;
+    chip.querySelector('.x').addEventListener('click', ()=>{
+      drill[type] = null;
+      renderTrend(); renderPareto(); renderJobCards(); renderChips(); renderTable();
+    });
+    chipRow.appendChild(chip);
+  });
+  if (defs.length){
+    const clr = document.createElement('span');
+    clr.className = 'clear-all';
+    clr.textContent = 'Clear all';
+    clr.addEventListener('click', ()=>{
+      drill = {kpi:null, job:null, item:null, week:null};
+      document.querySelectorAll('.kpi').forEach(el=>el.classList.remove('active'));
+      renderTrend(); renderPareto(); renderJobCards(); renderChips(); renderTable();
+    });
+    chipRow.appendChild(clr);
+  }
+}
+
+function renderTable(){
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  const stageVal = stageFilter.value;
+  const sevVal = document.getElementById('severityFilter').value;
+
+  let rows = RECORDS.filter(r=>{
+    if (!matchesDrill(r)) return false;
+    if (stageVal && r.stage !== stageVal) return false;
+    if (sevVal && r.severity !== sevVal) return false;
+    if (q){
+      const hay = (r.unit+' '+r.job+' '+r.catOutstandingItems.join(' ')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  rows.sort((a,b)=>{
+    let av=a[sortKey], bv=b[sortKey];
+    if (sortKey==='items'){ av=a.catOutstandingCount; bv=b.catOutstandingCount; }
+    if (av==null) av=''; if (bv==null) bv='';
+    if (av<bv) return -1*sortDir;
+    if (av>bv) return 1*sortDir;
+    return 0;
+  });
+
+  document.getElementById('rowCount').textContent = rows.length + ' of ' + RECORDS.length + ' units';
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    if (expandedUnit === r.unit) tr.classList.add('expanded');
+    const preview = r.catOutstandingItems.slice(0,3).join(', ') + (r.catOutstandingItems.length>3 ? ` +${r.catOutstandingItems.length-3} more` : '');
+    tr.innerHTML = `
+      <td class="unit-id">${r.unit}</td>
+      <td>${r.job}</td>
+      <td>${r.stage}</td>
+      <td>${fmtDate(r.catComplete)}</td>
+      <td>${r.catOutstandingCount}</td>
+      <td>${severityBadge(r)}</td>
+      <td style="color:var(--text-muted)">${preview || '—'}</td>`;
+    tr.addEventListener('click', ()=>{
+      expandedUnit = (expandedUnit === r.unit) ? null : r.unit;
+      renderTable();
+    });
+    tbody.appendChild(tr);
+
+    if (expandedUnit === r.unit){
+      const dtr = document.createElement('tr');
+      dtr.className = 'detail-row';
+      const itemsHtml = r.catOutstandingItems.length
+        ? `<div class="detail-items">${r.catOutstandingItems.map(it=>`<span class="detail-item">${it}</span>`).join('')}</div>`
+        : `<div style="color:var(--green);font-weight:600;margin-top:6px;">No outstanding items logged.</div>`;
+      dtr.innerHTML = `<td colspan="7"><div class="detail-box">
+        <div class="detail-meta">
+          <div><b>Handover:</b> ${fmtDate(r.handoverDate)}</div>
+          <div><b>Testing start:</b> ${fmtDate(r.testingStart)}</div>
+          <div><b>Internal test complete:</b> ${fmtDate(r.internalTestComplete)}</div>
+          <div><b>Ready for CAT:</b> ${fmtDate(r.readyForCat)}</div>
+          <div><b>CAT complete:</b> ${fmtDate(r.catComplete)}</div>
+        </div>
+        ${itemsHtml}
+        ${r.notes ? `<div style="margin-top:10px;font-size:11.5px;color:var(--text-muted);"><b>Note:</b> ${r.notes}</div>` : ''}
+      </div></td>`;
+      tbody.appendChild(dtr);
+    }
+  });
+}
+renderTable();
+renderChips();
+
+document.getElementById('searchBox').addEventListener('input', renderTable);
+stageFilter.addEventListener('change', renderTable);
+document.getElementById('severityFilter').addEventListener('change', renderTable);
+
+// ===================== tooltip =====================
+const tooltip = document.getElementById('tooltip');
+function showTip(e, html){
+  tooltip.style.display='block';
+  tooltip.style.left=(e.clientX+14)+'px';
+  tooltip.style.top=(e.clientY+14)+'px';
+  tooltip.innerHTML=html;
+}
+function hideTip(){ tooltip.style.display='none'; }
+</script>
+</body>
+</html>
