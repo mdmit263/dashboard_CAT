@@ -139,6 +139,27 @@
   .cp-v .big{font-size:20px;font-weight:800;margin-top:6px;}
   .cp-v .big.good{color:var(--green);} .cp-v .big.bad{color:var(--red);} .cp-v .big.flat{color:var(--text-muted);}
   .cp-v .d{font-size:11.5px;color:var(--text-muted);margin-top:3px;line-height:1.5;}
+
+  .ord-top{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
+  @media (max-width:900px){.ord-top{grid-template-columns:1fr;}}
+  .ord-tile{border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+  .ord-tile .v{font-size:26px;font-weight:800;line-height:1.1;}
+  .ord-tile .l{font-size:11.5px;color:var(--text-muted);margin-top:4px;line-height:1.4;}
+  .ord-row{display:grid;grid-template-columns:230px 1fr 150px;gap:12px;align-items:center;padding:8px 6px;border-radius:8px;cursor:pointer;font-size:12px;}
+  .ord-row:hover,.ord-row.active{background:var(--accent-light);}
+  @media (max-width:900px){.ord-row{grid-template-columns:1fr;}}
+  .ord-bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--border);}
+  .ord-bar i{display:block;height:100%;}
+  .ord-bar i+i{margin-left:2px;}
+  .ord-num{color:var(--text-muted);font-size:11.5px;}
+  .ord-key{display:flex;gap:16px;font-size:11px;color:var(--text-muted);margin:4px 0 8px;flex-wrap:wrap;}
+  .ord-key b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+  .ord-list{margin-top:12px;max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:10px;}
+  .ord-list table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  .ord-list th{position:sticky;top:0;background:var(--bg);text-align:left;padding:6px 8px;font-size:10.5px;color:var(--text-muted);}
+  .ord-list td{padding:5px 8px;border-top:1px solid var(--border);white-space:nowrap;}
+  .ord-list td.bad{color:var(--red);font-weight:700;}
+  .ord-list td.na{color:var(--text-faint);}
   .cp-note{font-size:11.5px;color:var(--text-muted);margin-top:14px;line-height:1.6;border-top:1px solid var(--border);padding-top:12px;}
   .dq-row{display:grid;grid-template-columns:230px 1fr 150px;gap:14px;align-items:center;padding:8px 8px;border-radius:8px;cursor:pointer;}
   .dq-row:hover{background:#F6F8FB;} .dq-row.on{background:var(--accent-light);}
@@ -196,6 +217,19 @@
     <div class="trend-legend" id="cpLegend"></div>
     <div class="cp-verdicts" id="cpVerdicts"></div>
     <div class="cp-note" id="cpNote"></div>
+  </div>
+
+
+  <div class="section-label">Order of events &mdash; how often it happens correctly</div>
+  <div class="panel" id="ordPanel">
+    <h2>Handover &rarr; Testing Start &rarr; Testing Complete &rarr; Ready for CAT &rarr; CAT</h2>
+    <div class="panel-sub" id="ordSub"></div>
+    <div class="ord-top" id="ordTop"></div>
+    <div class="ord-key"><span><b style="background:var(--green-line)"></b>In order</span><span><b style="background:var(--red-line)"></b>Out of order</span><span><b style="background:var(--border-strong)"></b>Can&rsquo;t tell (a date is missing)</span><span>Click a row to list the units</span></div>
+    <div id="ordRows"></div>
+    <div class="ord-list" id="ordList" style="display:none"></div>
+    <div class="trend-wrap" style="margin-top:18px"><svg id="ordSvg"></svg></div>
+    <div class="cp-note" id="ordNote"></div>
   </div>
 
   <div class="section-label">Data completeness</div>
@@ -765,7 +799,78 @@ document.addEventListener('click',e=>{
   renderDataCompleteness(); renderTable();
   if(dqKey) document.getElementById('tbody').scrollIntoView({behavior:'smooth',block:'center'});
 });
-renderCheckpointTrend(); renderDataCompleteness();
+
+/* ---------- Order of events ---------- */
+const ORD_STEPS = [
+  {key:'handoverDate',         label:'Handover'},
+  {key:'testingStart',         label:'Testing start'},
+  {key:'internalTestComplete', label:'Testing complete'},
+  {key:'readyForCat',          label:'Ready for CAT'},
+  {key:'catComplete',          label:'CAT'},
+];
+const day = v => v ? String(v).slice(0,10) : null;   // compare whole days, ignore time of day
+RECORDS.forEach(r=>{
+  r.ordPairs = ORD_STEPS.slice(1).map((b,i)=>{
+    const a = ORD_STEPS[i], x = day(r[a.key]), y = day(r[b.key]);
+    return {from:a.label, to:b.label, x, y, state: (!x||!y) ? 'missing' : (x<=y ? 'ok' : 'bad')};
+  });
+  const ds = ORD_STEPS.map(s=>day(r[s.key]));
+  r.ordAll = ds.every(Boolean);
+  r.ordBad = r.ordPairs.some(p=>p.state==='bad');
+  // "Ready for CAT" counts as done ahead of CAT only if it is dated on or before CAT
+  r.ordClass = r.ordBad ? 'bad' : (r.ordAll ? 'ok' : 'partial');
+});
+let ordSel = null;
+function renderOrder(){
+  const N = RECORDS.length, full = RECORDS.filter(r=>r.ordAll);
+  const fullOk = full.filter(r=>!r.ordBad).length;
+  const anyBad = RECORDS.filter(r=>r.ordBad).length;
+  const rc = RECORDS.map(r=>r.ordPairs[3]).filter(p=>p.state!=='missing');
+  const rcOk = rc.filter(p=>p.state==='ok').length;
+  const pct = (a,b)=>b? Math.round(a/b*100)+'%' : '—';
+  document.getElementById('ordSub').textContent = 'Dates are compared by calendar day. A step is “in order” when it is dated on or after the step before it.';
+  document.getElementById('ordTop').innerHTML = `
+    <div class="ord-tile"><div class="v" style="color:var(--green)">${pct(fullOk,full.length)}</div><div class="l"><b>${fullOk} of ${full.length}</b> units with all 5 dates recorded followed the correct order end to end.</div></div>
+    <div class="ord-tile"><div class="v" style="color:var(--red)">${pct(rc.length-rcOk,rc.length)}</div><div class="l"><b>${rc.length-rcOk} of ${rc.length}</b> units were marked Ready for CAT <i>after</i> CAT was already complete. Only ${rcOk} were ready before CAT.</div></div>
+    <div class="ord-tile"><div class="v" style="color:var(--amber)">${anyBad}</div><div class="l">of ${N} units have at least one step out of order. ${N-full.length} units are missing one or more dates, so they can’t be fully checked.</div></div>`;
+  document.getElementById('ordRows').innerHTML = [0,1,2,3].map(i=>{
+    const ps = RECORDS.map(r=>r.ordPairs[i]), c = {ok:0,bad:0,missing:0};
+    ps.forEach(p=>c[p.state]++);
+    const w = k => (c[k]/N*100).toFixed(2)+'%';
+    const known = c.ok+c.bad;
+    return `<div class="ord-row${ordSel===i?' active':''}" data-i="${i}">
+      <div><b>${ps[0].from}</b> &rarr; <b>${ps[0].to}</b></div>
+      <div class="ord-bar"><i style="width:${w('ok')};background:var(--green-line)"></i><i style="width:${w('bad')};background:var(--red-line)"></i><i style="width:${w('missing')};background:var(--border-strong)"></i></div>
+      <div class="ord-num">${pct(c.ok,known)} in order · ${c.bad} out · ${c.missing} unknown</div></div>`;
+  }).join('');
+  const list = document.getElementById('ordList');
+  if(ordSel===null){ list.style.display='none'; }
+  else {
+    const rows = RECORDS.filter(r=>r.ordPairs[ordSel].state==='bad')
+      .sort((a,b)=>a.ordPairs[ordSel].y<b.ordPairs[ordSel].y?1:-1);
+    const p0 = RECORDS[0].ordPairs[ordSel];
+    list.style.display='block';
+    list.innerHTML = `<table><thead><tr><th>Unit</th><th>${p0.from}</th><th>${p0.to}</th><th>Days backwards</th></tr></thead><tbody>`+
+      (rows.map(r=>{ const p=r.ordPairs[ordSel], d=Math.round((new Date(p.x)-new Date(p.y))/864e5);
+        return `<tr><td>${r.unit}</td><td>${p.x}</td><td class="bad">${p.y}</td><td class="bad">${d}</td></tr>`; }).join('') || '<tr><td colspan="4" class="na">No units out of order for this step.</td></tr>')+'</tbody></table>';
+  }
+  // weekly: units by week CAT was completed, in order vs not
+  const wk = {};
+  RECORDS.filter(r=>day(r.catComplete)).forEach(r=>{ const w=weekStart(r.catComplete); (wk[w]=wk[w]||{ok:0,bad:0,partial:0,n:0}); wk[w][r.ordClass]++; wk[w].n++; });
+  const ws = Object.keys(wk).sort(); const svg = document.getElementById('ordSvg');
+  const wd=900, ht=230, pl=40, pr=16, pt=22, pb=34, pw=wd-pl-pr, ph=ht-pt-pb;
+  const mx = Math.max(2,...ws.map(w=>wk[w].n)), slot = pw/Math.max(1,ws.length), bw=Math.min(34,slot*.6);
+  let o = `<text x="${pl}" y="12" class="trend-axis-label" style="font-weight:700">Units by the week CAT was completed</text>`;
+  for(let t=0;t<=mx;t+=Math.max(1,Math.ceil(mx/5))){ const y=pt+ph-t/mx*ph; o+=`<line x1="${pl}" x2="${wd-pr}" y1="${y}" y2="${y}" stroke="var(--border)"/><text x="${pl-6}" y="${y+3}" text-anchor="end" class="trend-axis-label">${t}</text>`; }
+  ws.forEach((w,i)=>{ const x=pl+slot*i+slot/2-bw/2; let y=pt+ph;
+    [['ok','var(--green-line)'],['partial','var(--border-strong)'],['bad','var(--red-line)']].forEach(([k,col])=>{ const h=wk[w][k]/mx*ph; if(!h) return; y-=h;
+      o+=`<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(0,h-2)}" rx="3" fill="${col}"><title>${w}: ${wk[w][k]} ${k==='ok'?'in order':k==='bad'?'out of order':'missing a date, no break seen'}</title></rect>`; });
+    o+=`<text x="${x+bw/2}" y="${ht-14}" text-anchor="middle" class="trend-axis-label">${w.slice(5)}</text>`; });
+  svg.setAttribute('viewBox',`0 0 ${wd} ${ht}`); svg.innerHTML=o;
+  document.getElementById('ordNote').innerHTML = 'Green = all five dates present and in order. Red = at least one step dated before the step ahead of it. Grey = a date is missing but nothing recorded is out of order. Missing dates are never counted as “in order”. Weekly bars show week commencing (Mon).';
+}
+document.getElementById('ordRows').addEventListener('click',e=>{ const r=e.target.closest('.ord-row'); if(!r) return; const i=+r.dataset.i; ordSel = ordSel===i?null:i; renderOrder(); });
+renderCheckpointTrend(); renderDataCompleteness(); renderOrder();
 </script>
 </body>
 </html>
